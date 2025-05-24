@@ -1,0 +1,69 @@
+# 데이터베이스 볼륨
+volumes/postgres_data/
+volumes/redis_data/
+
+# Airflow 로그 및 임시 파일
+src/logs/
+*.log
+*.pid
+airflow.db
+airflow.cfg
+webserver_config.py
+airflow-webserver.pid
+
+# Python 관련
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 가상 환경
+venv/
+env/
+ENV/
+
+# IDE 관련 파일
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# 환경 변수 및 시크릿
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.pem
+*.key
+
+# Docker 관련
+.docker/
+.dockerignore
+
+# 기타 임시 파일
+*.bak
+*.tmp
+.cache/
+.coverage
+htmlcov/
+.pytest_cache/ 

@@ -1,0 +1,7 @@
+apache-airflow==2.10.5
+apache-airflow-providers-postgres==5.10.1
+apache-airflow-providers-redis==3.6.0
+apache-airflow-providers-elasticsearch==5.5.3
+psycopg2-binary>=2.9.0
+pydantic==2.11.4
+Pillow

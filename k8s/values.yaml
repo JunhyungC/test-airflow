@@ -1,0 +1,228 @@
+## Bitnami Airflow Helm Chart Values
+## Kubernetes 환경으로 마이그레이션된 설정
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+## Airflow 이미지 설정
+image:
+  registry: docker.io
+  repository: bitnami/airflow
+  tag: 2.10.5-debian-12-r11
+  pullPolicy: IfNotPresent
+
+## Airflow 설정
+auth:
+  username: admin
+  password: admin
+  email: admin@example.com
+  firstName: Admin
+  lastName: User
+
+## Executor 설정 - CeleryExecutor 사용
+executor: CeleryExecutor
+
+## Airflow 환경변수 설정
+extraEnvVars:
+  - name: AIRFLOW__CORE__LOAD_EXAMPLES
+    value: "False"
+  - name: AIRFLOW__CORE__DAGS_FOLDER
+    value: "/opt/airflow/dags"
+  - name: PYTHONPATH
+    value: "/opt/airflow:/opt/airflow/utils"
+  - name: AIRFLOW__CORE__FERNET_KEY
+    value: "46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho="
+
+## Git Sync 설정 (Private Repository)
+dags:
+  existingConfigmap: ""
+  ## Git repository 설정
+  git:
+    enabled: true
+    # Private repository URL (SSH 형식)
+    repository: "https://github.com/Superb-AI-Suite/cremant"  # 실제 repository URL로 교체 필요
+    branch: main
+    revision: HEAD
+    # Git sync 간격 (초)
+    syncWait: 60
+    # Subpath 설정 - src 폴더 전체를 sync
+    subPath: "src"
+    # Private key secret 설정
+    secret: git-credentials
+    secretKey: ssh-private-key
+
+## Git credentials secret 생성을 위한 설정
+## 별도로 kubectl로 생성 필요:
+## kubectl create secret generic git-credentials --from-file=ssh-private-key=/path/to/private/key
+
+## Web server 설정
+web:
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+## Scheduler 설정
+scheduler:
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+## Worker 설정 (CeleryExecutor용)
+worker:
+  replicaCount: 2
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+## Triggerer 설정
+triggerer:
+  enabled: true
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+## PostgreSQL 설정 (내장 사용)
+postgresql:
+  enabled: true
+  auth:
+    enablePostgresUser: true
+    postgresPassword: airflow
+    username: airflow
+    password: airflow
+    database: airflow
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+
+## Redis 설정 (내장 사용 - CeleryExecutor용)
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+
+## External Database 사용 안함
+externalDatabase:
+  host: ""
+  port: ""
+  user: ""
+  password: ""
+  database: ""
+
+## External Redis 사용 안함  
+externalRedis:
+  host: ""
+  port: ""
+  password: ""
+
+## 로그 설정
+logs:
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+
+setupDBJob:
+  enabled: falase
+
+## 서비스 어카운트
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+## 보안 컨텍스트
+podSecurityContext:
+  enabled: true
+  fsGroup: 1001
+
+containerSecurityContext:
+  enabled: true
+  runAsUser: 1001
+  runAsNonRoot: true
+
+## 네트워크 정책
+networkPolicy:
+  enabled: false
+
+## 메트릭스 설정
+metrics:
+  enabled: false
+
+## 추가 패키지 설치 (requirements.txt 내용)
+extraPackages: |
+  apache-airflow-providers-postgres==5.10.1
+  apache-airflow-providers-redis==3.6.0  
+  apache-airflow-providers-elasticsearch==5.5.3
+  psycopg2-binary>=2.9.0
+  pydantic==2.11.4
+  Pillow
+
+## Init 컨테이너에서 추가 패키지 설치
+extraInitContainers:
+  - name: install-requirements
+    image: docker.io/bitnami/airflow:2.10.5-debian-12-r11
+    command:
+      - /bin/bash
+      - -c
+      - |
+        pip install --user \
+          apache-airflow-providers-postgres==5.10.1 \
+          apache-airflow-providers-redis==3.6.0 \
+          apache-airflow-providers-elasticsearch==5.5.3 \
+          psycopg2-binary \
+          pydantic==2.11.4 \
+          Pillow
+    volumeMounts:
+      - name: requirements-volume
+        mountPath: /home/airflow/.local
+        
+## 추가 볼륨 설정        
+extraVolumes:
+  - name: requirements-volume
+    emptyDir: {}
+
+extraVolumeMounts:
+  - name: requirements-volume
+    mountPath: /home/airflow/.local 

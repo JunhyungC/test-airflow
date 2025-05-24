@@ -1,0 +1,78 @@
+###########################
+# Airflow 공통 설정
+###########################
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  depends_on:
+    - db
+  env_file:
+    - .env
+  volumes:
+    - ./src/dags:/opt/airflow/dags
+    - ./src/logs:/opt/airflow/logs
+    - ./src/utils:/opt/airflow/utils
+    - ./src/config/airflow.cfg:/opt/airflow/airflow.cfg:ro ## ← airflow.cfg 마운트
+    - /Users/junhyung/roboflow-cable-damage:/app/input/roboflow-cable-damage
+  environment:
+    - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+    - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@db:15432/airflow
+    - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+    - AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/dags
+    - PYTHONPATH=/opt/airflow:/opt/airflow/utils
+    # 필요 시 다른 Airflow 환경변수 추가 …
+    - AIRFLOW_CONN_REDIS_DEFAULT=redis://:@host.docker.internal:6388/0
+    - AIRFLOW_CONN_ELASTICSEARCH_DEFAULT=elasticsearch://:@host.docker.internal:9200
+    - AIRFLOW_CONN_SUNRISE_API_DEFAULT=http://:@app-api:8080/system/graphql
+  networks:
+    - shared-network
+
+################################
+# 서비스 정의
+################################
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    ports:
+      - "15432:15432"
+    command: -p 15432
+    volumes:
+      - ./volumes/postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow", "-p", "15432"]
+      interval: 5s
+      retries: 5
+    networks:
+      - shared-network
+
+  airflow-webserver:
+    <<: *airflow-common
+    ports:
+      - "8080:8080"
+    command: webserver
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+
+  airflow-triggerer:
+    <<: *airflow-common
+    command: triggerer
+
+networks:
+  shared-network:
+    external: true
+    name: superb-platform-network
